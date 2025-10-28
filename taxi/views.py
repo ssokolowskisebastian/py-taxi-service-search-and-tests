@@ -6,8 +6,14 @@ from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from .models import Driver, Car, Manufacturer
-from .forms import DriverCreationForm, DriverLicenseUpdateForm, CarForm, \
-    ManufacturerSearchForm, CarSearchForm, DriverSearchForm
+from .forms import (
+    DriverCreationForm,
+    DriverLicenseUpdateForm,
+    CarForm,
+    ManufacturerSearchForm,
+    CarSearchForm,
+    DriverSearchForm,
+)
 
 
 @login_required
@@ -47,9 +53,7 @@ class ManufacturerListView(LoginRequiredMixin, generic.ListView):
     def get_context_data(self, *, object_list=None, **kwargs):
         context = super().get_context_data(**kwargs)
         name = self.request.GET.get("name")
-        context["search_form"] = ManufacturerSearchForm(
-            initial={"name": name}
-        )
+        context["search_form"] = ManufacturerSearchForm(initial={"name": name})
         context["request"] = self.request
         return context
 
@@ -87,9 +91,7 @@ class CarListView(LoginRequiredMixin, generic.ListView):
     def get_context_data(self, *, object_list=None, **kwargs):
         context = super().get_context_data(**kwargs)
         model = self.request.GET.get("model")
-        context["search_form"] = CarSearchForm(
-            initial={"model": model}
-        )
+        context["search_form"] = CarSearchForm(initial={"model": model})
         context["request"] = self.request
         return context
 
@@ -130,9 +132,8 @@ class DriverListView(LoginRequiredMixin, generic.ListView):
     def get_context_data(self, *, object_list=None, **kwargs):
         context = super().get_context_data(**kwargs)
         username = self.request.GET.get("username")
-        context["search_form"] = DriverSearchForm(
-            initial={"username": username}
-        )
+        context["search_form"] = (
+            DriverSearchForm(initial={"username": username}))
         context["request"] = self.request
         return context
 
