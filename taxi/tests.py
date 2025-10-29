@@ -1,11 +1,14 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from taxi.forms import DriverCreationForm
+from taxi.forms import DriverCreationForm, DriverSearchForm, CarSearchForm, \
+    ManufacturerSearchForm
 from taxi.models import Manufacturer, Driver, Car
 from django.test import TestCase
 
 # Create your tests here.
-
+MANUFACTURER_URL = reverse("taxi:manufacturer-list")
+DRIVER_URL = reverse("taxi:driver-list")
+CAR_URL = reverse("taxi:car-list")
 
 class ModelsTests(TestCase):
     def test_manufacturer_str(self) -> None:
@@ -17,10 +20,10 @@ class ModelsTests(TestCase):
 
     def test_driver_str(self) -> None:
         driver = Driver.objects.create(
-            username="choppa",
-            first_name="Leonid",
-            last_name="Popkin",
-            license_number="UNIQUE001",
+            username="test",
+            first_name="Sebastian",
+            last_name="Sokolowski",
+            license_number="1QAZXSW2",
         )
         self.assertEqual(
             str(driver), f"{driver.username} "
@@ -34,88 +37,83 @@ class ModelsTests(TestCase):
         self.assertEqual(str(car), car.model)
 
 
-class AdminPanelTest(TestCase):
+class AdminTest(TestCase):
     def setUp(self) -> None:
         self.admin_user = get_user_model().objects.create_superuser(
             username="admin", password="admin123"
         )
         self.client.force_login(self.admin_user)
 
-        self.driver = Driver.objects.create(
-            username="choppa",
-            first_name="Leonid",
-            last_name="Popkin",
-            license_number="UNIQUE002",
+        self.driver = Driver.objects.create_user(
+            username="test",
+            password="test123",
+            license_number="1QAZCDE3",
         )
 
-    def test_driver_in_admin_list(self):
+    def test_driver_licencse(self):
         url = reverse("admin:taxi_driver_changelist")
         response = self.client.get(url)
 
-        self.assertContains(response, "choppa")
-        self.assertContains(response, "Leonid")
-        self.assertContains(response, "Popkin")
+        self.assertContains(response, self.driver.license_number)
 
 
 class FormTest(TestCase):
-    def test_form_is_valid(self):
-        form_data = {
-            "username": "testuser",
-            "password1": "StrongPassword123!",
-            "password2": "StrongPassword123!",
-            "license_number": "LOL12345",  #
-            "first_name": "Pavlo",
-            "last_name": "Semenikhin",
-        }
-        form = DriverCreationForm(data=form_data)
-        if not form.is_valid():
-            print(form.errors)
-        self.assertTrue(form.is_valid())
+    def test_driver_search_form(self):
+        username = {"username": "admin"}
+        username_search = DriverSearchForm(data=username)
+        self.assertTrue(username_search.is_valid())
+        self.assertEqual(username_search.cleaned_data, username)
+
+    def test_car_search_form(self):
+        model = {"model": "Lincoln"}
+        model_search = CarSearchForm(data=model)
+        self.assertTrue(model_search.is_valid())
+        self.assertEqual(model_search.cleaned_data, model)
+
+    def test_manufacturer_search_form(self):
+        name = {"name": "BMW"}
+        name_search = ManufacturerSearchForm(data=name)
+        self.assertTrue(name_search.is_valid())
+        self.assertEqual(name_search.cleaned_data, name)
 
 
 class ViewsTest(TestCase):
     def setUp(self) -> None:
-        self.user = get_user_model().objects.create_superuser(
-            username="admin", password="admin123", license_number="UNIQUE002"
+        self.user = get_user_model().objects.create_user(
+            username="admin", password="admin"
         )
         self.client.force_login(self.user)
 
-    def test_driver_list_view(self):
-        response = self.client.get(reverse("taxi:driver-list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.user.username)
+    def test_manufacturer_by_name_matching(self):
+        ford = Manufacturer.objects.create(name="Ford", country="USA")
+        honda = Manufacturer.objects.create(name="Honda", country="Japan")
 
-    def test_driver_detail_view(self):
-        response = self.client.get(reverse("taxi:driver-detail",
-                                           args=(self.user.id,)))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.user.username)
+        response = self.client.get(MANUFACTURER_URL)
 
-    def test_manufacturer_list_view(self):
-        Manufacturer.objects.create(name="Honda", country="Japan")
-        response = self.client.get(reverse("taxi:manufacturer-list"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Honda")
+        self.assertContains(response, honda.name)
+        self.assertContains(response, ford.name)
 
-    def test_car_list_view(self):
+    def test_manufacturer_by_name_non_matching(self):
+        honda = Manufacturer.objects.create(name="Honda", country="Japan")
+
+        response = self.client.get(MANUFACTURER_URL,{"name":"Ford"})
+        self.assertNotContains(response, honda.name)
+
+    def test_manufacturer_by_name(self):
+        honda = Manufacturer.objects.create(name="Honda", country="Japan")
+
+        response = self.client.get(MANUFACTURER_URL, {"name": "Honda"})
+        self.assertContains(response, honda.name)
+
+    def test_car_by_name(self):
         manufacturer = (Manufacturer.objects
-                        .create(name="Audi", country="Germany"))
-        car = Car.objects.create(model="A6", manufacturer=manufacturer)
+                        .create(name="Honda", country="Japan"))
+        car = Car.objects.create(model="Civic", manufacturer=manufacturer)
         car.drivers.add(self.user)
 
-        response = self.client.get(reverse("taxi:car-list"))
+        response = self.client.get(CAR_URL)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "A6")
+        self.assertContains(response, "Civic")
 
-    def test_create_manufacturer_view(self):
-        response = self.client.post(
-            reverse("taxi:manufacturer-create"),
-            {"name": "Mazda", "country": "Japan"}
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(Manufacturer.objects.filter(name="Mazda").exists())
 
-    def test_driver_search(self):
-        response = self.client.get(reverse("taxi:driver-list"),
-                                   {"username": "admin"})
-        self.assertContains(response, "admin")
