@@ -10,6 +10,7 @@ MANUFACTURER_URL = reverse("taxi:manufacturer-list")
 DRIVER_URL = reverse("taxi:driver-list")
 CAR_URL = reverse("taxi:car-list")
 
+
 class ModelsTests(TestCase):
     def test_manufacturer_str(self) -> None:
         manufacturer = (Manufacturer.objects
@@ -97,7 +98,7 @@ class ViewsTest(TestCase):
     def test_manufacturer_by_name_non_matching(self):
         honda = Manufacturer.objects.create(name="Honda", country="Japan")
 
-        response = self.client.get(MANUFACTURER_URL,{"name":"Ford"})
+        response = self.client.get(MANUFACTURER_URL, {"name": "Ford"})
         self.assertNotContains(response, honda.name)
 
     def test_manufacturer_by_name(self):
@@ -115,5 +116,4 @@ class ViewsTest(TestCase):
         response = self.client.get(CAR_URL)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Civic")
-
 
